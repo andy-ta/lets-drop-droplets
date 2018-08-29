@@ -25,7 +25,7 @@ def fetch_droplet():
     droplets = r.content
     dl_id = None
     for droplet in json.loads(droplets)['droplets']:
-        if droplet['name'] == 'ldd-droplet':
+        if droplet['name'] == 'cvas':
             dl_id = droplet['id']
     if dl_id:
         return dl_id
@@ -100,7 +100,7 @@ def birth(images):
         url = 'https://api.digitalocean.com/v2/droplets'
 
         payload = {
-            'name': 'ldd-droplet',
+            'name': 'cvas',
             'region': args.region,
             'size': args.size,
             'image': image_id
