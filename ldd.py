@@ -3,13 +3,16 @@ import requests
 import json
 import time
 
-parser = argparse.ArgumentParser(description='Kills or creates a DigitalOcean Droplet with a snapshot.')
-parser.add_argument('-o', action='store_true',
-                    help='opposite of creating, therefore killing a droplet with the name \'ldd-droplet\'')
+parser = argparse.ArgumentParser(description='Kills or creates a DigitalOcean Droplet with a snapshot.\n'
+                                             'It also assigns the first floating ip it finds to the droplet.\n'
+                                             'Useful for saving on DigitalOcean credits when you\'re not working.')
+parser.add_argument('-k', action='store_true', help='opposite of creating, therefore killing a droplet')
 parser.add_argument('token', help='your authorization token for the DigitalOcean API')
+parser.add_argument('-n', '--name', default='cvas', help='the name of the droplet (default: cvas)')
 parser.add_argument('-r', '--region', default='tor1',
-                    help='unique slug identifier for the region that you wish to deploy in')
-parser.add_argument('-s', '--size', default='s-4vcpu-8gb', help='unique slug identifier for the size')
+                    help='unique slug identifier for the region that you wish to deploy in (default: tor1)')
+parser.add_argument('-s', '--size', default='s-1vcpu-1gb', help='unique slug identifier for the size '
+                                                                '(default: s-1vcpu-1gb')
 
 args = parser.parse_args()
 
@@ -25,7 +28,7 @@ def fetch_droplet():
     droplets = r.content
     dl_id = None
     for droplet in json.loads(droplets)['droplets']:
-        if droplet['name'] == 'cvas':
+        if droplet['name'] == args.name:
             dl_id = droplet['id']
     if dl_id:
         return dl_id
@@ -100,14 +103,13 @@ def birth(images):
         url = 'https://api.digitalocean.com/v2/droplets'
 
         payload = {
-            'name': 'cvas',
+            'name': args.name,
             'region': args.region,
             'size': args.size,
             'image': image_id
         }
 
         r = requests.post(url, data=json.dumps(payload), headers=headers)
-
         print('Status of creation: ' + str(r.status_code))
 
         delete_image(image_id)
@@ -143,7 +145,7 @@ def floating_ip(dl_id):
     print('Status of floating ip assignment: ' + str(r.status_code))
 
 
-if args.o:
+if args.k:
     droplet_id = fetch_droplet()
     shutdown(droplet_id)
     snap(droplet_id)
@@ -151,5 +153,5 @@ if args.o:
 else:
     birth(fetch_image())
     print('\nPreparing to assign ip (2 mins)...')
-    time.sleep(60*2)
+    time.sleep(120)
     floating_ip(fetch_droplet())
