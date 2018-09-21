@@ -11,8 +11,8 @@ parser.add_argument('token', help='your authorization token for the DigitalOcean
 parser.add_argument('-n', '--name', default='cvas', help='the name of the droplet (default: cvas)')
 parser.add_argument('-r', '--region', default='tor1',
                     help='unique slug identifier for the region that you wish to deploy in (default: tor1)')
-parser.add_argument('-s', '--size', default='s-1vcpu-1gb', help='unique slug identifier for the size '
-                                                                '(default: s-1vcpu-1gb')
+parser.add_argument('-s', '--size', default='s-2vcpu-4gb', help='unique slug identifier for the size '
+                                                                '(default: s-2vcpu-4gb')
 
 args = parser.parse_args()
 
@@ -24,7 +24,7 @@ def fetch_droplet():
 
     r = requests.get(url, headers=headers)
 
-    print('Status of snapshot fetch ' + str(r.status_code))
+    print('Status of snapshot fetch: ' + str(r.status_code))
     droplets = r.content
     dl_id = None
     for droplet in json.loads(droplets)['droplets']:
@@ -118,8 +118,6 @@ def birth(images):
             'image': image_id
         }
 
-        print(payload)
-
         r = requests.post(url, data=json.dumps(payload), headers=headers)
         print('Status of creation: ' + str(r.status_code))
 
@@ -165,7 +163,7 @@ def floating_ip(dl_id):
 
 
 def assert_success(status_code):
-    if status_code / 100 == 2:
+    if int(status_code / 100) == 2:
         return True
     return False
 
