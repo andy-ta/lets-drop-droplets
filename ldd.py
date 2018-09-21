@@ -55,6 +55,8 @@ def shutdown(dl_id):
 
     print('Status of power off: ' + str(r.status_code))
 
+    return assert_success(r.status_code)
+
 
 def snap(dl_id):
     url = 'https://api.digitalocean.com/v2/droplets/' + str(dl_id) + '/actions'
@@ -68,6 +70,8 @@ def snap(dl_id):
 
     print('Status of snapshot creation: ' + str(r.status_code))
 
+    return assert_success(r.status_code)
+
 
 def kill(dl_id):
     url = 'https://api.digitalocean.com/v2/droplets/' + str(dl_id)
@@ -76,13 +80,16 @@ def kill(dl_id):
 
     print('Status of droplet after assassination attempt: ' + str(r.status_code))
 
+    return assert_success(r.status_code)
+
 
 def fetch_image():
     url = 'https://api.digitalocean.com/v2/images?private=true'
 
     r = requests.get(url, headers=headers)
 
-    print('Status of snapshot fetch ' + str(r.status_code))
+    print('Status of snapshot fetch: ' + str(r.status_code))
+
     return r.content
 
 
@@ -92,6 +99,8 @@ def delete_image(image_id):
     r = requests.delete(url, headers=headers)
 
     print('Status of image deletion: ' + str(r.status_code))
+
+    return assert_success(r.status_code)
 
 
 def birth(images):
@@ -109,10 +118,15 @@ def birth(images):
             'image': image_id
         }
 
+        print(payload)
+
         r = requests.post(url, data=json.dumps(payload), headers=headers)
         print('Status of creation: ' + str(r.status_code))
 
-        delete_image(image_id)
+        if assert_success(r.status_code):
+            return delete_image(image_id)
+        else:
+            return False
     else:
         raise Exception('Failed to find snapshot named \'ldd-snapshot\'.')
 
@@ -123,35 +137,46 @@ def floating_ip(dl_id):
 
     print('Status of floating ip fetch: ' + str(r.status_code))
 
-    float_ip = None
-    for ip in json.loads(r.content)['floating_ips']:
-        if not ip['droplet']:
-            float_ip = ip['ip']
-    if float_ip:
-        url = 'https://api.digitalocean.com/v2/floating_ips/' + float_ip + '/actions'
-        payload = {
-            'type': 'assign',
-            'droplet_id': dl_id
-        }
+    if assert_success(r.status_code):
+        float_ip = None
+        for ip in json.loads(r.content)['floating_ips']:
+            if not ip['droplet']:
+                float_ip = ip['ip']
+        if float_ip:
+            url = 'https://api.digitalocean.com/v2/floating_ips/' + float_ip + '/actions'
+            payload = {
+                'type': 'assign',
+                'droplet_id': dl_id
+            }
+        else:
+            url = 'https://api.digitalocean.com/v2/floating_ips'
+
+            payload = {
+                'droplet_id': dl_id
+            }
+
+        r = requests.post(url, data=json.dumps(payload), headers=headers)
+
+        print('Status of floating ip assignment: ' + str(r.status_code))
+
+        return assert_success(r.status_code)
     else:
-        url = 'https://api.digitalocean.com/v2/floating_ips'
+        return False
 
-        payload = {
-            'droplet_id': dl_id
-        }
 
-    r = requests.post(url, data=json.dumps(payload), headers=headers)
-
-    print('Status of floating ip assignment: ' + str(r.status_code))
+def assert_success(status_code):
+    if status_code / 100 == 2:
+        return True
+    return False
 
 
 if args.k:
     droplet_id = fetch_droplet()
-    shutdown(droplet_id)
-    snap(droplet_id)
-    kill(droplet_id)
+    if shutdown(droplet_id):
+        if snap(droplet_id):
+            kill(droplet_id)
 else:
-    birth(fetch_image())
-    print('\nPreparing to assign ip (2 mins)...')
-    time.sleep(120)
-    floating_ip(fetch_droplet())
+    if birth(fetch_image()):
+        print('\nPreparing to assign ip (2 mins)...')
+        time.sleep(120)
+        floating_ip(fetch_droplet())
